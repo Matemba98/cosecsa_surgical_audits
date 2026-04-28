@@ -1,0 +1,605 @@
+---
+title: "preliminary_summary"
+author: "matemba_"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(
+  tidyverse,
+  readr,
+  dplyr,
+  stringr,
+  lubridate,
+  labelled,
+  janitor,
+  gtsummary,
+  haven,
+  anthro,
+  logbin,
+  purrr,
+  broom,
+  psych,
+  car,
+  glmnet,
+  vcd,
+  nortest,
+  olsrr,
+  MASS,
+  VIM,
+  naniar,
+  scales,
+  flextable,
+)
+```
+
+```{r paths}
+root_dir <- file.path(
+  "C:", "Users", "New", "Documents", "GitHub",
+  "cosecsa_surgical_audits"
+)
+data_dir <- file.path(root_dir, "data")
+raw_dir <- file.path(data_dir, "raw")
+
+raw_path <- file.path(
+  raw_dir,
+  "SurgicalAuditInECSAR_DATA_LABELS_2026-04-27_1708.csv"
+)
+
+raw <- readr::read_csv(
+  raw_path,
+  show_col_types = FALSE,
+  name_repair = "unique"
+) %>%
+  janitor::clean_names()
+
+write.csv(raw, file.path(data_dir, "raw", "raw.csv"), row.names = FALSE)
+
+raw_1 <- read_dta(
+  file.path(data_dir, "raw", "raw_1.dta"),
+) %>%
+  janitor::clean_names()
+```
+
+```{r}
+colnames_df <- tibble::tibble(variable = names(raw_1))
+
+
+var_label <- tibble(
+  variable = names(raw_1),
+  label = map_chr(
+    names(raw_1),
+    ~ {
+      lab <- var_label(raw_1[[.x]])
+      if (is.null(lab) || length(lab) == 0) NA_character_ else as.character(lab)
+    }
+  ),
+  class = map_chr(raw_1, ~ paste(class(.x), collapse = ", "))
+)
+```
+
+```{r summary}
+data_1 <- raw_1 %>% 
+  dplyr::select(study_id_1, data_access_group, age_at_time_of_surgery_months_ye, gender_of_the_patient, patients_weight_kg, patients_height_in_meters, hb_level_g_d_l_immediate_before, facilities_visited_prior, date_of_surgery, mode_of_surgical_payment, age_group, type_of_surgery_adults, type_of_surgery_performed_adult, types_of_surgery_paediatrics, type_of_surgery_performed_paedia, did_the_patient_have_any_of_thes, urgency_of_operation, asa_physical_status_score, was_prophylactic_antibiotics_giv, please_approximate_the_timing_of, preoperative_fasting, senior_surgeon, senior_anaesthiologist, surgical_field_preparation, anaesthesia_type_used_select_all, were_minimal_invasive_procedures, what_was_the_class_of_the_wound, was_intraoperative_antibiotics_p, was_the_patient_given_intra_oper, indication_for_the_surgical_proc, trauma_injuries_and_orthopedic, acute_abdominal_conditions, cancers_and_tumors, urological_conditions, thoracic_conditions, neurosurgery, neonatal_and_infant_conditions, what_was_the_patients_dispositio, did_the_patient_require_nasogast, post_operative_complications_cla, complication_severity_grading, did_the_patient_develop_post_ope, if_yes_which_type_of_ssi, was_the_patient_alive_at_30_days, cause_of_death_107, v109, self_care_activities_bathing_sho, mobility_activities_getting_in_a, household_management_activities, social_and_leisure_activities_pa
+         )
+
+
+var_label_data1 <- tibble(
+  variable = names(data_1),
+  label = map_chr(
+    names(data_1),
+    ~ {
+      lab <- var_label(data_1[[.x]])
+      if (is.null(lab) || length(lab) == 0) NA_character_ else as.character(lab)
+    }
+  ),
+  class = map_chr(data_1, ~ paste(class(.x), collapse = ", "))
+)
+
+write.csv(var_label_data1, file.path(data_dir, "processed", "var_label_data1.csv"), row.names = FALSE)
+
+
+data_2 <- data_1 %>%
+  rename(
+    study_id = study_id_1,
+    site = data_access_group,
+    age = age_at_time_of_surgery_months_ye,
+    sex = gender_of_the_patient,
+    weight_kg = patients_weight_kg,
+    height_m = patients_height_in_meters,
+    hb_gdl = hb_level_g_d_l_immediate_before,
+    facilities_visited_prior = facilities_visited_prior,
+    date_of_surgery = date_of_surgery,
+    mode_of_surgical_payment = mode_of_surgical_payment,
+    age_group = age_group,
+    type_of_surgery_adults = type_of_surgery_adults,
+    type_of_surgery_performed_adult = type_of_surgery_performed_adult,
+    types_of_surgery_paediatrics = types_of_surgery_paediatrics,
+    type_of_surgery_performed_paedia = type_of_surgery_performed_paedia,
+    chronic_condition = did_the_patient_have_any_of_thes,
+    urgency_of_operation = urgency_of_operation,
+    asa_physical_status_score = asa_physical_status_score,
+    prophylactic_antibiotics_given = was_prophylactic_antibiotics_giv,
+    timing_of_p_antibiotic = please_approximate_the_timing_of,
+    preoperative_fasting = preoperative_fasting,
+    senior_surgeon = senior_surgeon,
+    senior_anaesthiologist = senior_anaesthiologist,
+    surgical_field_preparation = surgical_field_preparation,
+    anaesthesia_type = anaesthesia_type_used_select_all,
+    minimal_invasive_procd_used = were_minimal_invasive_procedures,
+    wound_class = what_was_the_class_of_the_wound,
+    intraoperative_antibiotics = was_intraoperative_antibiotics_p,
+    intra_oper_transfussion = was_the_patient_given_intra_oper,
+    indication_surgical_procd = indication_for_the_surgical_proc,
+    trauma_injuries_and_orthopedic = trauma_injuries_and_orthopedic,
+    acute_abdominal_conditions = acute_abdominal_conditions,
+    cancers_and_tumors = cancers_and_tumors,
+    urological_conditions = urological_conditions,
+    thoracic_conditions = thoracic_conditions,
+    neurosurgery = neurosurgery,
+    neonatal_and_infant_conditions = neonatal_and_infant_conditions,
+    disposition_after_surg = what_was_the_patients_dispositio,
+    require_nasogastric_tube = did_the_patient_require_nasogast,
+    clavien_dindo_classification = post_operative_complications_cla,
+    complication_severity_grading = complication_severity_grading,
+    post_surg_infection = did_the_patient_develop_post_ope,
+    if_yes_which_type_of_ssi = if_yes_which_type_of_ssi,
+    alive_at_30_days = was_the_patient_alive_at_30_days,
+    cause_of_death = cause_of_death_107,
+    return_to_theatre = v109,
+    self_care_activities = self_care_activities_bathing_sho,
+    mobility_activities = mobility_activities_getting_in_a,
+    household_management_activities = household_management_activities,
+    social_and_leisure_activitie = social_and_leisure_activities_pa
+  )
+
+```
+
+```{r}
+data_2 <- data_2 %>%
+  mutate(
+    # Date variable
+    date_of_surgery = parse_date_time(
+      date_of_surgery,
+      orders = c("ymd", "dmy", "mdy", "dmy HMS", "ymd HMS", "mdy HMS")
+    ) %>% as_date(),
+    # Numerical variables
+    across(
+      c(age, weight_kg, height_m, hb_gdl, facilities_visited_prior),
+      ~ parse_number(as.character(.x))
+    ),
+    # Categorical variables
+    across(
+      c(
+        site, sex, mode_of_surgical_payment, age_group,
+        type_of_surgery_adults, type_of_surgery_performed_adult,
+        types_of_surgery_paediatrics, type_of_surgery_performed_paedia,
+        chronic_condition, urgency_of_operation, asa_physical_status_score,
+        prophylactic_antibiotics_given, timing_of_p_antibiotic,
+        preoperative_fasting, senior_surgeon, senior_anaesthiologist,
+        surgical_field_preparation, anaesthesia_type,
+        minimal_invasive_procd_used, wound_class,
+        intraoperative_antibiotics, intra_oper_transfussion,
+        indication_surgical_procd, trauma_injuries_and_orthopedic,
+        acute_abdominal_conditions, cancers_and_tumors,
+        urological_conditions, thoracic_conditions, neurosurgery,
+        neonatal_and_infant_conditions, disposition_after_surg,
+        require_nasogastric_tube, clavien_dindo_classification,
+        complication_severity_grading, post_surg_infection,
+        if_yes_which_type_of_ssi, alive_at_30_days, cause_of_death,
+        return_to_theatre, self_care_activities, mobility_activities,
+        household_management_activities, social_and_leisure_activitie
+      ),
+      ~ as.factor(str_squish(as.character(.x)))
+    )
+  )
+
+glimpse(data_2)
+
+summary(data_2$age)
+summary(data_2$weight_kg)
+summary(data_2$height_m)
+summary(data_2$hb_gdl)
+summary(data_2$facilities_visited_prior)
+summary(data_2$date_of_surgery)
+```
+
+```{r}
+data_2 <- data_2 %>%
+  mutate(
+    age_cat = case_when(
+      age < 1 ~ "<1",
+      age < 5 ~ "1–4",
+      age < 15 ~ "5–14",
+      age < 45 ~ "15–44",
+      age < 65 ~ "45–64",
+      age >= 65 ~ "65+",
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("<1","1–4","5–14","15–44","45–64","65+"))
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    bmi = weight_kg / (height_m^2),
+    
+    bmi_cat = case_when(
+      bmi < 18.5 ~ "Underweight",
+      bmi < 25 ~ "Normal",
+      bmi < 30 ~ "Overweight",
+      bmi >= 30 ~ "Obese",
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("Underweight","Normal","Overweight","Obese"))
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    hb_cat = case_when(
+      hb_gdl < 7 ~ "Severe",
+      hb_gdl < 10 ~ "Moderate",
+      hb_gdl < 12 ~ "Mild",
+      hb_gdl >= 12 ~ "Normal",
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("Normal","Mild","Moderate","Severe"))
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    facilities_cat = case_when(
+      facilities_visited_prior == 0 ~ "0",
+      facilities_visited_prior == 1 ~ "1",
+      facilities_visited_prior >= 2 ~ "2+",
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("0","1","2+"))
+  )
+
+table(data_2$age_cat, useNA = "ifany")
+table(data_2$bmi_cat, useNA = "ifany")
+table(data_2$hb_cat, useNA = "ifany")
+table(data_2$facilities_cat, useNA = "ifany")
+```
+
+```{r}
+cat_vars <- data_2 %>%
+  dplyr::select(where(is.factor)) %>%
+  dplyr::select(-dplyr::any_of(c("age_cat", "bmi_cat", "hb_cat", "facilities_cat")))
+
+purrr::map(cat_vars, ~ table(.x, useNA = "ifany"))
+
+write.csv(cat_vars, file.path(data_dir, "processed", "cat_var_summary.csv"), row.names = TRUE)
+
+#type of surgery grouping
+data_2 <- data_2 %>%
+  mutate(
+    procedure_group = coalesce(
+      type_of_surgery_adults,
+      types_of_surgery_paediatrics
+    ) %>% as.factor()
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    procedure_name = coalesce(
+      type_of_surgery_performed_adult,
+      type_of_surgery_performed_paedia
+    )
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    procedure_name = fct_lump_n(procedure_name, n = 10)
+  )
+
+table(data_2$procedure_name, useNA = "ifany")
+
+# urgency
+data_2 <- data_2 %>%
+  mutate(
+    urgency_cat = case_when(
+      str_detect(str_to_lower(urgency_of_operation), "elect") ~ "Elective",
+      str_detect(str_to_lower(urgency_of_operation), "emerg") ~ "Emergency",
+      str_detect(str_to_lower(urgency_of_operation), "urgent") ~ "Urgent",
+      TRUE ~ "Other"
+    ) %>% factor(levels = c("Elective","Urgent","Emergency","Other"))
+  )
+
+table(data_2$urgency_cat, useNA = "ifany")
+
+#asa score
+data_2 <- data_2 %>%
+  mutate(
+    asa = as.numeric(asa_physical_status_score),
+    asa_cat = factor(asa, ordered = TRUE)
+  )
+
+data_2 <- data_2 %>%
+  mutate(
+    asa_cat = case_when(
+      asa == 1 ~ "ASA I",
+      asa == 2 ~ "ASA II",
+      asa == 3 ~ "ASA III",
+      asa == 4 ~ "ASA IV",
+      asa == 5 ~ "ASA V",
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("ASA I","ASA II","ASA III","ASA IV","ASA V"))
+  )
+
+table(data_2$asa_cat, useNA = "ifany")
+
+#prophylctic antibiotic
+data_2 <- data_2 %>%
+  mutate(
+    abx_given = case_when(
+      str_detect(str_to_lower(as.character(prophylactic_antibiotics_given)), "yes") ~ "Yes",
+      str_detect(str_to_lower(as.character(prophylactic_antibiotics_given)), "no") ~ "No",
+      str_detect(str_to_lower(as.character(prophylactic_antibiotics_given)), "not indicated") ~ NA_character_,
+      TRUE ~ NA_character_
+    ),
+    
+    abx_given = factor(
+      abx_given,
+      levels = c("No", "Yes")
+    ),
+    
+    abx_timing_cat = case_when(
+      is.na(timing_of_p_antibiotic) ~ NA_character_,
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "not indicated") ~ NA_character_,
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "1-2 hours before surgical incision") ~ "1-2 hours before",
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "2-3 hours before surgical incision") ~ "2-3 hours before",
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "3-4 hours before surgical incision") ~ "3-4 hours before",
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "4-5 hours before surgical incision") ~ "4-5 hours before",
+      str_detect(str_to_lower(as.character(timing_of_p_antibiotic)), "30-60 minutes before surgical incision") ~ "30-60 minutes before",
+      TRUE ~ "Unknown"
+    ),
+    
+    abx_timing_cat = factor(
+      abx_timing_cat,
+      levels = c(
+        "30-60 minutes before",
+        "1-2 hours before",
+        "2-3 hours before",
+        "3-4 hours before",
+        "4-5 hours before",
+        "Unknown"
+      )
+    )
+  )
+
+table(data_2$abx_given, useNA = "ifany")
+table(data_2$abx_timing_cat, useNA = "ifany")
+
+#wound class
+data_2 <- data_2 %>%
+  mutate(
+    wound_class_cat = case_when(
+      str_detect(str_to_lower(as.character(wound_class)), "^class i\\b") ~ "Class I: Clean",
+      str_detect(str_to_lower(as.character(wound_class)), "^class ii\\b") ~ "Class II: Clean-contaminated",
+      str_detect(str_to_lower(as.character(wound_class)), "^class iii\\b") ~ "Class III: Contaminated",
+      str_detect(str_to_lower(as.character(wound_class)), "^class iv\\b") ~ "Class IV: Dirty-infected",
+      TRUE ~ NA_character_
+    ),
+    
+    wound_class_cat = factor(
+      wound_class_cat,
+      levels = c(
+        "Class I: Clean",
+        "Class II: Clean-contaminated",
+        "Class III: Contaminated",
+        "Class IV: Dirty-infected"
+      ),
+      ordered = TRUE
+    )
+  )
+
+table(data_2$wound_class_cat, useNA = "ifany")
+
+data_2 <- data_2 %>%
+  mutate(
+    wound_contaminated = case_when(
+      wound_class_cat %in% c("Class I: Clean", "Class II: Clean-contaminated") ~ "Clean/clean-contaminated",
+      wound_class_cat %in% c("Class III: Contaminated", "Class IV: Dirty-infected") ~ "Contaminated/dirty",
+      TRUE ~ NA_character_
+    ) %>%
+      factor(levels = c("Clean/clean-contaminated", "Contaminated/dirty"))
+  )
+
+table(data_2$wound_contaminated, useNA = "ifany")
+
+#clavien_dindo
+data_2 <- data_2 %>%
+  mutate(
+    clavien_clean = stringr::str_to_upper(
+      stringr::str_squish(as.character(clavien_dindo_classification))
+    ),
+
+    clavien_grade = case_when(
+      str_detect(clavien_clean, "GRADE IIIA") ~ "IIIa",
+      str_detect(clavien_clean, "GRADE IIIB") ~ "IIIb",
+      str_detect(clavien_clean, "GRADE IVA") ~ "IVa",
+      str_detect(clavien_clean, "GRADE IVB") ~ "IVb",
+      str_detect(clavien_clean, "GRADE II\\b") ~ "II",
+      str_detect(clavien_clean, "GRADE I\\b") ~ "I",
+      str_detect(clavien_clean, "GRADE III\\b") ~ "III",
+      str_detect(clavien_clean, "GRADE IV\\b") ~ "IV",
+      str_detect(clavien_clean, "GRADE V") ~ "V",
+      TRUE ~ NA_character_
+    ),
+
+    clavien_grade = factor(
+      clavien_grade,
+      levels = c("I", "II", "III", "IIIa", "IIIb", "IV", "IVa", "IVb", "V"),
+      ordered = TRUE
+    )
+  )
+
+
+data_2 <- data_2 %>%
+  mutate(
+    clavien_group = case_when(
+      clavien_grade %in% c("I","II") ~ "Minor",
+      clavien_grade %in% c("III","IIIa","IIIb","IV","IVa","IVb") ~ "Major",
+      clavien_grade == "V" ~ "Death",
+      TRUE ~ NA_character_
+    ) %>%
+      factor(levels = c("Minor","Major","Death"))
+  )
+
+table(data_2$clavien_grade, useNA = "ifany")
+table(data_2$clavien_group, useNA = "ifany")
+
+#surgical infection
+data_2 <- data_2 %>%
+  mutate(
+    ssi = case_when(
+      str_detect(str_to_lower(post_surg_infection), "yes") ~ 1,
+      str_detect(str_to_lower(post_surg_infection), "no") ~ 0,
+      TRUE ~ NA_real_
+    ),
+    ssi = factor(
+      ssi,
+      levels = c(0, 1),
+      labels = c("No", "Yes")
+    )
+  )
+
+table(data_2$ssi, useNA = "ifany")
+
+#Mortality
+data_2 <- data_2 %>%
+  mutate(
+    death_30d = case_when(
+      str_detect(str_to_lower(alive_at_30_days), "alive") ~ 0,
+      str_detect(str_to_lower(alive_at_30_days), "dead|died") ~ 1,
+      TRUE ~ NA_real_
+    ),
+    death_30d = factor(
+      death_30d,
+      levels = c(0, 1),
+      labels = c("Alive", "Dead")
+    )
+    
+  )
+
+table(data_2$death_30d, useNA = "ifany")
+
+#cause of death
+data_2 <- data_2 %>%
+  mutate(cause_of_death_cat = case_when(
+    str_detect(str_to_lower(as.character(cause_of_death)), "multiorgan failure") ~ "Multiorgan failure",
+    str_detect(str_to_lower(as.character(cause_of_death)), "sepsis") ~ "Sepsis",
+    TRUE ~ NA_character_
+  ) %>%
+    factor(levels = c("Multiorgan failure", "Sepsis"))
+  )
+
+table(data_2$cause_of_death_cat, useNA = "ifany")
+
+# Return to theatre
+data_2 <- data_2 %>%
+  mutate(
+    reoperation_30d = case_when(
+      str_detect(str_to_lower(return_to_theatre), "yes") ~ 1,
+      str_detect(str_to_lower(return_to_theatre), "no") ~ 0,
+      TRUE ~ NA_real_
+    ),
+    reoperation_30d = factor(
+      reoperation_30d,
+      levels = c(0, 1),
+      labels = c("No", "Yes")
+    )
+  )
+
+table(data_2$reoperation_30d, useNA = "ifany")
+
+#functionaity
+data_2 <- data_2 %>%
+  mutate(
+    functional_status = case_when(
+      str_detect(str_to_lower(self_care_activities), "independent") ~ "Independent",
+      str_detect(str_to_lower(self_care_activities), "needs assistance") ~ "Dependent",
+      str_detect(str_to_lower(self_care_activities), "not able to do") ~ "Dependent",
+      TRUE ~ "Unknown"
+    ) %>% factor()
+  )
+
+table(data_2$functional_status, useNA = "ifany")
+
+```
+
+```{r}
+tbl_casemix_site <- data_2 %>%
+  dplyr::select(site, age, age_cat, sex, bmi, bmi_cat, hb_gdl, hb_cat, facilities_cat, asa_cat) %>%
+  tbl_summary(
+    by = site,
+    missing = "ifany",
+    statistic = list(
+      all_continuous() ~ "{median} ({p25}, {p75})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 1
+  ) %>%
+  add_overall() %>%
+  bold_labels()
+
+tbl_surgical_site <- data_2 %>%
+  dplyr::select(site, procedure_group, procedure_name, urgency_cat,
+         wound_class_cat, wound_contaminated,
+         abx_given, abx_timing_cat, preoperative_fasting,
+         surgical_field_preparation, intraoperative_antibiotics,
+         intra_oper_transfussion, minimal_invasive_procd_used,
+         anaesthesia_type) %>%
+  tbl_summary(
+    by = site,
+    type = list(abx_given ~ "categorical"),
+    missing = "ifany",
+    statistic = list(
+      all_continuous() ~ "{median} ({p25}, {p75})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    digits = all_continuous() ~ 1
+  ) %>%
+  add_overall() %>%
+  bold_labels()
+
+tbl_outcomes_site <- data_2 %>%
+  dplyr::select(site, clavien_grade, clavien_group,
+         complication_severity_grading, ssi,
+         if_yes_which_type_of_ssi, death_30d,
+         cause_of_death_cat, reoperation_30d,
+         functional_status) %>%
+  tbl_summary(
+    by = site,
+    type = list(
+      ssi ~ "categorical",
+      death_30d ~ "categorical",
+      reoperation_30d ~ "categorical"
+    ),
+    missing = "ifany",
+    statistic = list(all_categorical() ~ "{n} ({p}%)")
+  ) %>%
+  add_overall() %>%
+  bold_labels()
+
+tbl_big_site <- tbl_stack(
+  tbls = list(tbl_casemix_site, tbl_surgical_site, tbl_outcomes_site),
+  group_header = c(
+    "Patient case-mix",
+    "Surgical and perioperative profile",
+    "Postoperative and 30-day outcomes"
+  )
+)
+
+tbl_big_site
+
+as_flex_table(tbl_big_site) %>%
+  flextable::save_as_docx(
+    path = file.path(root_dir, "outputs", "preliminary_summary_by_site.docx")
+  )
+```
+
